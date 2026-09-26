@@ -1,0 +1,16 @@
+import React from 'react';
+import { Activity, AlertTriangle, ArrowRight, Users } from 'lucide-react';
+import PageHeader from '../../components/ui/PageHeader';
+import { useLiveEvent } from '../../context/LiveEventContext';
+function tone(v){return v>=92?'red':v>=85?'red':v>=70?'amber':'green'}
+export default function Crowd(){
+ const {state,loading,error,acknowledgeAlert}=useLiveEvent();
+ if(loading&&!state)return <div className="empty-state">Connecting to live crowd engine…</div>;
+ const gates=state?.gates||[]; const busiest=[...gates].sort((a,b)=>(b.live?.occupancy_percent||0)-(a.live?.occupancy_percent||0))[0];
+ return <><PageHeader eyebrow="ORGANIZER · CROWD MONITORING" title="Crowd Pulse" subtitle="Gate pressure is calculated from verified ticket-entry events and streamed back to every connected workspace."/>
+ {error&&<div className="login-alert error">{error}</div>}
+ <div className="crowd-top"><div className="big-metric"><span>LIVE ENTRIES</span><strong>{Number(state?.metrics?.total_entries||0).toLocaleString()}</strong><small>Database-backed event count</small></div><div className="big-metric"><span>VENUE UTILIZATION</span><strong>{Number(state?.metrics?.venue_occupancy_percent||0).toFixed(1)}%</strong><small>Across active gates</small></div><div className="big-metric"><span>PRESSURE GATE</span><strong>{busiest?.name||'—'}</strong><small>{busiest?`${Number(busiest.live.occupancy_percent).toFixed(1)}% · ${busiest.live.pressure}`:'No gate state'}</small></div></div>
+ <div className="panel"><div className="panel-head"><div><h3>Live gate pressure</h3><p>Updates automatically after ticket scans and every five seconds as a safety refresh.</p></div><span className="live-pill">● REALTIME</span></div><div className="bar-chart">{gates.map(g=><div className="bar-row" key={g.id}><span>{g.name}</span><div><i className={tone(Number(g.live.occupancy_percent))} style={{width:`${Math.min(100,Number(g.live.occupancy_percent||0))}%`}}/></div><b>{Number(g.live.occupancy_percent||0).toFixed(1)}%</b></div>)}</div></div>
+ <div className="content-grid two-one"><section className="panel"><div className="panel-head"><div><h3><AlertTriangle/> Operational alerts</h3><p>Created by the database event processor.</p></div></div>{(state?.alerts||[]).map(a=><div className={`alert-item ${a.severity==='critical'||a.severity==='high'?'red':'amber'}`} key={a.id}><AlertTriangle/><div><b>{a.title}</b><p>{a.message}</p><small>{new Date(a.created_at).toLocaleTimeString()} · {a.severity}</small></div><button className="text-btn" onClick={()=>acknowledgeAlert(a.id)}>Acknowledge <ArrowRight size={14}/></button></div>)}{!(state?.alerts||[]).length&&<div className="empty-state">No open operational alerts.</div>}</section><section className="panel"><div className="panel-head"><div><h3><Users/> Entry velocity</h3><p>Scan rate from the last configured operations window.</p></div></div>{gates.map(g=><div className="ai-row" key={g.id}><div className="ai-no">{g.name.replace('Gate ','')}</div><div><b>{Number(g.live.scan_velocity_per_minute||0).toFixed(1)} scans/min</b><small>{Number(g.live.current_entries||0).toLocaleString()} verified entries · {g.live.pressure}</small></div><span>●</span></div>)}</section></div>
+ </>;
+}

@@ -1,0 +1,15 @@
+import React, { useMemo, useState } from 'react';
+import { CheckCircle2, Radio, Users, UserPlus } from 'lucide-react';
+import PageHeader from '../../components/ui/PageHeader';
+import { useLiveEvent } from '../../context/LiveEventContext';
+export default function Volunteers(){
+ const {state,loading,error,assignVolunteer}=useLiveEvent(); const [name,setName]=useState(''); const [gateId,setGateId]=useState(''); const [saving,setSaving]=useState(false);
+ const gates=state?.gates||[]; const selected=gateId||gates[0]?.id||''; const assignments=state?.volunteers||[];
+ const counts=useMemo(()=>gates.map(g=>({...g,count:assignments.filter(a=>a.gate_id===g.id).length})),[gates,assignments]);
+ const add=async()=>{if(!name.trim()||!selected)return;setSaving(true);try{await assignVolunteer(selected,name.trim());setName('')}finally{setSaving(false)}};
+ if(loading&&!state)return <div className="empty-state">Connecting to volunteer operations…</div>;
+ return <><PageHeader eyebrow="ORGANIZER · VOLUNTEERS" title="Deploy where pressure is rising." subtitle="Volunteer assignments are stored centrally and update live when organizers respond to gate pressure."/>{error&&<div className="login-alert error">{error}</div>}
+ <div className="content-grid two-one"><section className="panel"><div className="panel-head"><div><h3><UserPlus/> Deploy volunteer</h3><p>Create a real assignment against the current event.</p></div></div><label className="ops-label">Volunteer name<input value={name} onChange={e=>setName(e.target.value)} placeholder="Volunteer / marshal name"/></label><label className="ops-label">Gate<select value={selected} onChange={e=>setGateId(e.target.value)}>{gates.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></label><button className="primary-btn" disabled={saving||!name.trim()||!selected} onClick={add}><UserPlus size={16}/> {saving?'Assigning…':'Assign volunteer'}</button></section><section className="panel"><div className="panel-head"><div><h3><Users/> Gate coverage</h3><p>Live assignment counts from Supabase.</p></div><span className="live-pill"><Radio size={12}/> LIVE</span></div>{counts.map(g=><div className="ai-row" key={g.id}><div className="ai-no">{g.name.replace('Gate ','')}</div><div><b>{g.count} active volunteers</b><small>{Number(g.live?.occupancy_percent||0).toFixed(1)}% gate occupancy · {g.live?.pressure}</small></div><span>{g.live?.pressure==='critical'||g.live?.pressure==='high'?<span className="good">!</span>:<CheckCircle2 size={16}/>}</span></div>)}</section></div>
+ <section className="panel"><div className="panel-head"><div><h3>Current assignments</h3><p>Every row below is a live database record.</p></div></div>{assignments.map(a=><div className="assignment-row" key={a.id}><div className="assignment-avatar">{(a.volunteer_name||'V')[0].toUpperCase()}</div><div><b>{a.volunteer_name}</b><small>{gates.find(g=>g.id===a.gate_id)?.name||'Unassigned'} · assigned {new Date(a.assigned_at).toLocaleTimeString()}</small></div><span className="badge">{a.assignment_status}</span></div>)}{!assignments.length&&<div className="empty-state">No active assignments yet.</div>}</section>
+ </>;
+}
